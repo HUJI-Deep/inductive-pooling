@@ -1,0 +1,70 @@
+{
+    "name": "cac",
+    "search_type": "grid",
+    "rendering_engine": true,
+    "termination_rules": {
+      "nan": true
+    },
+    "hyper_params": [
+    [
+        ### Task Parameters ###	
+        {
+            "name": "label_type",
+            "type": "preset",
+            "values": ["sym","cls"]  # "sym" - symmetry task, "cls" - closedness task
+        },	
+        ### Architectural Parameters ###
+        {
+            "name": "quad_perm",
+            "type": "preset",
+            "values": [true,false]  # true - mirror pooling, false - square pooling
+        },
+        {
+            "name": "net_breadth",
+            "type": "preset",
+            "values": [16]  # Number of channels in all hidden layers - add values (with separating commas) to try more breadths
+        },
+        ### Learning Parameters ###
+        {
+            "name": "max_iter",
+            "type": "preset",
+            "values": [15000]
+        },
+        {
+            "name": "batch_size",
+            "type": "preset",
+            "values": [64]
+        },
+        {
+            "name": "solver_type",
+            "type": "preset",
+            "values": ["Adam"]
+        },	
+        {
+            "name": "base_lr",
+            "type": "preset",
+            "values": [0.003]
+        },
+        {
+            "name": "momentum",
+            "type": "preset",
+            "values": [0.9]
+        },
+        {
+            "name": "momentum2",
+            "type": "preset",
+            "values": [0.9]
+        },		
+        {
+            "name": "weight_decay",
+            "type": "preset",
+            "values": [0]
+        },
+        {
+            "name": "delta",
+            "type": "preset",
+            "values": [1e-16]
+        }
+    	]
+    ]
+}

@@ -1,0 +1,500 @@
+# Number of iterations between tests
+test_interval: 5000
+# Covering the full 4,000 test and 20,000 training images
+test_iter: 40
+test_state: { stage: "test-on-test-set" }
+test_iter: 200
+test_state: { stage: "test-on-train-set" }
+# Unsupervised test settings
+init_test_interval: 0 # How many iterations between each test
+init_test_iter: {{ (50000 / batch_size) | int }}   # number of batches per test
+# Solver settings
+base_lr: {{ base_lr }}
+momentum: {{ momentum }}
+momentum2: {{ momentum2 }}
+delta: {{ delta }}
+weight_decay: {{ weight_decay }}
+# Learning rate policy
+lr_policy: "multistep"
+stepvalue: {{ (max_iter * 0.8) | int }}
+gamma: 0.1
+# Number of iterations between displays
+display: 20
+# Maximum number of iterations
+max_iter: {{ max_iter | int }}
+iter_size: 1
+# snapshot intermediate results
+snapshot: 15000
+snapshot_prefix: "{{ name }}"
+# solver mode: CPU or GPU
+solver_mode: GPU
+type: "{{ solver_type }}"
+debug_info: false
+
+net_param {
+    name: "{{ name }}"
+    ##############
+    ### Source ###
+    ##############
+    layer {
+        name: "train_data"
+        type: "ImageData"
+        top: "data"
+        top: "label"
+        image_data_param {
+            source: "data/blob_train_image_data/index_{{ label_type }}.txt"
+            root_folder: "data/blob_train_image_data/"
+            batch_size: {{ batch_size | int }}
+            shuffle: false
+            is_color: false
+        }
+        include: { 
+            phase: TRAIN
+        }
+    }	
+    layer {
+        name: "train_data_eval"
+        type: "ImageData"
+        top: "data"
+        top: "label"
+        image_data_param {
+            source: "data/blob_train_image_data/index_{{ label_type }}.txt"
+            root_folder: "data/blob_train_image_data/"
+            batch_size: 100
+            shuffle: false
+            is_color: false
+        }
+        include: { 
+            phase: TEST
+            stage: "test-on-train-set"
+        }
+    }
+    layer {
+        name: "test_data"
+        type: "ImageData"
+        top: "data"
+        top: "label"
+        image_data_param {
+            source: "data/blob_test_image_data/index_{{ label_type }}.txt"
+            root_folder: "data/blob_test_image_data/"
+            batch_size: 100
+            shuffle: false
+            is_color: false
+        }
+        include: { 
+            phase: TEST
+            stage: "test-on-test-set"
+        }
+    }
+    ############################
+    ### Input Pre-processing ###
+    ############################
+    layer {
+        name: "data_scale"
+        bottom: "data"
+        top: "data_scale"
+        type: "Power"
+        power_param {
+            scale: 0.003923 # 1/255 - converts binary 0/255 image to 0/1
+        }
+    } 
+    layer {
+        name: "data_1hot"
+        type: "OneHot"
+        bottom: "data_scale"
+        top: "data_1hot"
+        one_hot_param {
+            input_dim: 2
+            to_log: false
+        }
+    }	
+    ######################
+    ### Hidden Layer 1 ###
+    ######################
+    layer {
+        name: "hidden1_conv"
+        type: "Convolution"
+        bottom: "data_1hot"
+        top: "hidden1_conv"
+        # learning rate and decay multipliers for the filters
+        param { 
+            lr_mult: 1 
+            decay_mult: 1 
+        }
+        # learning rate and decay multipliers for the biases
+        param { 
+            lr_mult: 2 
+            decay_mult: 0 
+        }
+        convolution_param {
+            num_output: {{ net_breadth | int }}
+            kernel_size: 1
+            stride: 1
+            weight_filler {
+                type: "xavier"
+            }
+            bias_filler {
+                type: "constant"
+                value: 0
+            }
+        }
+    }
+    layer {
+        name: "hidden1_relu"
+        type: "ReLU"
+        bottom: "hidden1_conv"
+        top: "hidden1_conv"
+    }
+  {% if quad_perm %}
+    layer {
+        name: "hidden1_perm"
+        type: "Permutation"
+        bottom: "hidden1_conv"
+        top: "hidden1_perm"
+        permutation_param {
+            type: QUAD2
+        }
+    }
+  {% else %}
+    layer {
+        name: "hidden1_perm_dummy"
+        bottom: "hidden1_conv"
+        top: "hidden1_perm"
+        type: "Power"
+    }
+  {% endif %}
+    layer {
+        name: "hidden1_pool"
+        type: "Pooling"
+        bottom: "hidden1_perm"
+        top: "hidden1_pool"
+        pooling_param {
+            pool: {{ pool_type }}
+            kernel_size: 2
+            stride: 2
+            pad: 0
+            engine: CAFFE
+        }
+    }
+    ######################
+    ### Hidden Layer 2 ###
+    ######################
+    layer {
+        name: "hidden2_conv"
+        type: "Convolution"
+        bottom: "hidden1_pool"
+        top: "hidden2_conv"
+        # learning rate and decay multipliers for the filters
+        param { 
+            lr_mult: 1 
+            decay_mult: 1 
+        }
+        # learning rate and decay multipliers for the biases
+        param { 
+            lr_mult: 2 
+            decay_mult: 0 
+        }
+        convolution_param {
+            num_output: {{ net_breadth | int }}
+            kernel_size: 1
+            stride: 1
+            weight_filler {
+                type: "xavier"
+            }
+            bias_filler {
+                type: "constant"
+                value: 0
+            }
+        }
+    }	
+    layer {
+        name: "hidden2_relu"
+        type: "ReLU"
+        bottom: "hidden2_conv"
+        top: "hidden2_conv"
+    }
+  {% if quad_perm %}
+    layer {
+        name: "hidden2_perm"
+        type: "Permutation"
+        bottom: "hidden2_conv"
+        top: "hidden2_perm"
+        permutation_param {
+            type: QUAD2
+        }
+    }
+  {% else %}
+    layer {
+        name: "hidden2_perm_dummy"
+        bottom: "hidden2_conv"
+        top: "hidden2_perm"
+        type: "Power"
+    }
+  {% endif %}
+    layer {
+        name: "hidden2_pool"
+        type: "Pooling"
+        bottom: "hidden2_perm"
+        top: "hidden2_pool"
+        pooling_param {
+            pool: {{ pool_type }}
+            kernel_size: 2
+            stride: 2
+            pad: 0
+            engine: CAFFE
+        }
+    }
+    ######################
+    ### Hidden Layer 3 ###
+    ######################
+    layer {
+        name: "hidden3_conv"
+        type: "Convolution"
+        bottom: "hidden2_pool"
+        top: "hidden3_conv"
+        # learning rate and decay multipliers for the filters
+        param { 
+            lr_mult: 1 
+            decay_mult: 1 
+        }
+        # learning rate and decay multipliers for the biases
+        param { 
+            lr_mult: 2 
+            decay_mult: 0 
+        }
+        convolution_param {
+            num_output: {{ net_breadth | int }}
+            kernel_size: 1
+            stride: 1
+            weight_filler {
+                type: "xavier"
+            }
+            bias_filler {
+                type: "constant"
+                value: 0
+            }
+        }
+    }
+    layer {
+        name: "hidden3_relu"
+        type: "ReLU"
+        bottom: "hidden3_conv"
+        top: "hidden3_conv"
+    }
+  {% if quad_perm %}
+    layer {
+        name: "hidden3_perm"
+        type: "Permutation"
+        bottom: "hidden3_conv"
+        top: "hidden3_perm"
+        permutation_param {
+            type: QUAD2
+        }
+    }
+  {% else %}
+    layer {
+        name: "hidden3_perm_dummy"
+        bottom: "hidden3_conv"
+        top: "hidden3_perm"
+        type: "Power"
+    }
+  {% endif %}
+    layer {
+        name: "hidden3_pool"
+        type: "Pooling"
+        bottom: "hidden3_perm"
+        top: "hidden3_pool"
+        pooling_param {
+            pool: {{ pool_type }}
+            kernel_size: 2
+            stride: 2
+            pad: 0
+            engine: CAFFE
+        }
+    }
+    ######################
+    ### Hidden Layer 4 ###
+    ######################
+    layer {
+        name: "hidden4_conv"
+        type: "Convolution"
+        bottom: "hidden3_pool"
+        top: "hidden4_conv"
+        # learning rate and decay multipliers for the filters
+        param { 
+            lr_mult: 1 
+            decay_mult: 1 
+        }
+        # learning rate and decay multipliers for the biases
+        param { 
+            lr_mult: 2 
+            decay_mult: 0 
+        }
+        convolution_param {
+            num_output: {{ net_breadth | int }}
+            kernel_size: 1
+            stride: 1
+            weight_filler {
+                type: "xavier"
+            }
+            bias_filler {
+                type: "constant"
+                value: 0
+            }
+        }
+    }
+    layer {
+        name: "hidden4_relu"
+        type: "ReLU"
+        bottom: "hidden4_conv"
+        top: "hidden4_conv"
+    }
+  {% if quad_perm %}
+    layer {
+        name: "hidden4_perm"
+        type: "Permutation"
+        bottom: "hidden4_conv"
+        top: "hidden4_perm"
+        permutation_param {
+            type: QUAD2
+        }
+    }
+  {% else %}
+    layer {
+        name: "hidden4_perm_dummy"
+        bottom: "hidden4_conv"
+        top: "hidden4_perm"
+        type: "Power"
+    }
+  {% endif %}
+    layer {
+        name: "hidden4_pool"
+        type: "Pooling"
+        bottom: "hidden4_perm"
+        top: "hidden4_pool"
+        pooling_param {
+            pool: {{ pool_type }}
+            kernel_size: 2
+            stride: 2
+            pad: 0
+            engine: CAFFE
+        }
+    }
+    ######################
+    ### Hidden Layer 5 ###
+    ######################
+    layer {
+        name: "hidden5_conv"
+        type: "Convolution"
+        bottom: "hidden4_pool"
+        top: "hidden5_conv"
+        # learning rate and decay multipliers for the filters
+        param { 
+            lr_mult: 1 
+            decay_mult: 1 
+        }
+        # learning rate and decay multipliers for the biases
+        param { 
+            lr_mult: 2 
+            decay_mult: 0 
+        }
+        convolution_param {
+            num_output: {{ net_breadth | int }}
+            kernel_size: 1
+            stride: 1
+            weight_filler {
+                type: "xavier"
+            }
+            bias_filler {
+                type: "constant"
+                value: 0
+            }
+        }
+    }
+    layer {
+        name: "hidden5_relu"
+        type: "ReLU"
+        bottom: "hidden5_conv"
+        top: "hidden5_conv"
+    }	
+  {% if quad_perm %}
+    layer {
+        name: "hidden5_perm"
+        type: "Permutation"
+        bottom: "hidden5_conv"
+        top: "hidden5_perm"
+        permutation_param {
+            type: QUAD2
+        }
+    }
+  {% else %}
+    layer {
+        name: "hidden5_perm_dummy"
+        bottom: "hidden5_conv"
+        top: "hidden5_perm"
+        type: "Power"
+    }
+  {% endif %}
+    layer {
+        name: "hidden5_pool"
+        type: "Pooling"
+        bottom: "hidden5_perm"
+        top: "hidden5_pool"
+        pooling_param {
+            pool: {{ pool_type }}
+            kernel_size: 2
+            stride: 2
+            pad: 0
+            engine: CAFFE
+        }
+    }
+    ####################
+    ### Output Layer ###
+    ####################
+    layer {
+        name: "output"
+        type: "Convolution"
+        bottom: "hidden5_pool"
+        top: "output"
+        # learning rate and decay multipliers for the filters
+        param { 
+            lr_mult: 1 
+            decay_mult: 1 
+        }
+        # learning rate and decay multipliers for the biases
+        param { 
+            lr_mult: 2 
+            decay_mult: 0 
+        }
+        convolution_param {
+            num_output: 2
+            kernel_size: 1
+            stride: 1
+            weight_filler {
+                type: "xavier"
+            }
+            bias_filler {
+                type: "constant"
+                value: 0
+            }
+        }
+    }	
+    ############
+    ### Sink ###
+    ############
+    layer {
+        name: "loss"
+        type: "SoftmaxWithLoss"
+        bottom: "output"
+        bottom: "label"
+        top: "loss"
+    }	
+    layer {
+        name: "accuracy"
+        type: "Accuracy"
+        bottom: "output"
+        bottom: "label"
+        top: "accuracy"
+        include: { phase: TEST }
+    }	
+}

@@ -1,0 +1,3 @@
+[submodule "deps/simnets"]
+	path = deps/simnets
+	url = https://github.com/HUJI-Deep/caffe-simnets
