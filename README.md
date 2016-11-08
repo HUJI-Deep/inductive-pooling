@@ -2,7 +2,7 @@
 This repository contains scripts for reproducing the experiments in the paper [Inductive Bias of Deep Convolutional Networks through Pooling Geometry](https://arxiv.org/abs/1605.06743). 
 
 ## Disclaimer
-Due to inherent randomness in the experiments, obtained results might slightly deviate from those reported in the paper.
+Due to inherent randomness in the experiments, obtained results might differ slightly from those reported in the paper.
 Qualitatively however, full compliance with the paper is expected.
 
 ## Installation
@@ -22,9 +22,11 @@ The experiments in the paper are based on a synthetic classification benchmark c
 Two labels are assigned to images, ranking properties of the displayed blob: 
 * **closure**: how morphologically closed the blob is
 * **symmetry**: how left-right symmetric the blob is about its center
+
 Convolutional networks with two pooling geometries are evaluated: 
 * **square**: standard contiguous square windows
 * **mirror**: pooling windows join together nodes with their spatial reflections
+
 It is shown that different pooling geometries lead to superior performance in different tasks.
 Specifically, square pooling outperforms mirror on the task of closure ranking, whereas the opposite occurs when ranking symmetry.
 
@@ -35,6 +37,7 @@ The folder `exp/blob/cac` contains scripts for evaluating *convolutional arithme
 * **net.prototmp**: template for prototxt specifying network architecture and training scheme
 * **train_plan.json**: list of values for the unspecified parameters in `net.prototmp`
 * **train.py**: substitutes the values in `train_plan.json` into `net.prototmp` and trains the network, measuring its train and test accuracies along the way
+
 By default, calling `train.py` initiates 4 runs, corresponding to the different combinations of closure/symmetry task and square/mirror pooling.
 The gaps in performance (square pooling better than mirror for closure, opposite for symmetry) should be evident.
 
